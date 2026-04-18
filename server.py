@@ -33,8 +33,11 @@ def gecerli_es_mi(grup, okey_degeri):
     referans_sayi = None
     kullanilan_renkler = set()
     for tas in grup:
-        if tas.get('is_okey'): continue
+        if tas.get('is_okey'): continue # OKEY JOKERDİR: Kontrol edilmeden atlanır
+        
+        # SAHTE OKEY KONTROLÜ: Sadece Okey taşının değerini alır
         r, s = (okey_degeri['renk'], okey_degeri['sayi']) if tas['renk'] == 'Sahte' else (tas['renk'], tas['sayi'])
+        
         if referans_sayi is None: referans_sayi = s
         elif s != referans_sayi: return False
         if r in kullanilan_renkler: return False
@@ -51,7 +54,7 @@ def gecerli_seri_mi(grup, okey_degeri):
             elif r != renk: return False
             
     tas_sayilari = []
-    okey_sayisi = sum(1 for tas in grup if tas.get('is_okey'))
+    okey_sayisi = sum(1 for tas in grup if tas.get('is_okey')) # Okeyleri sayıyoruz
     for tas in grup:
         if not tas.get('is_okey'):
             _, s = (okey_degeri['renk'], okey_degeri['sayi']) if tas['renk'] == 'Sahte' else (tas['renk'], tas['sayi'])
@@ -63,8 +66,8 @@ def gecerli_seri_mi(grup, okey_degeri):
     tas_sayilari.sort()
     for i in range(len(tas_sayilari) - 1):
         fark = tas_sayilari[i+1] - tas_sayilari[i]
-        if fark == 0: return False
-        okey_sayisi -= (fark - 1)
+        if fark == 0: return False # Seride aynı taştan iki tane olamaz
+        okey_sayisi -= (fark - 1) # Okeyleri aradaki boşlukları doldurmak için harca
     return okey_sayisi >= 0
 
 def cift_kontrol_et(el_taslari, okey_degeri):
@@ -132,7 +135,6 @@ class OyunYoneticisi:
         self.oyun_basladi_mi = True
         self.oyuncu_elleri, self.ortadaki_taslar, self.gosterge, self.okey_tasi = deste_olustur_ve_dagit(self.oyuncular)
         self.sira_kimde = self.oyuncular[0]
-        # Atılan taşlar havuzunu temizle
         for p in self.oyuncular:
             self.atilan_taslar[p] = []
 
@@ -161,6 +163,7 @@ class OyunYoneticisi:
                 "sira_kimde": self.sira_kimde,
                 "benim_adim": oyuncu_adi,
                 "gosterge": self.gosterge,
+                "okey": self.okey_tasi, # DÜZELTME: Arayüzün bilebilmesi için Okey taşını pakete ekledik
                 "eliniz": self.oyuncu_elleri[oyuncu_adi],
                 "orta_tas_sayisi": len(self.ortadaki_taslar),
                 "atilan_taslar": ust_taslar
@@ -185,14 +188,11 @@ class OyunYoneticisi:
             
             if nerden == "orta" and self.ortadaki_taslar:
                 self.oyuncu_elleri[oyuncu_adi].append(self.ortadaki_taslar.pop())
-                
-                # --- YENİ: ORTADA TAŞ BİTTİ Mİ KONTROLÜ ---
                 if len(self.ortadaki_taslar) == 0:
                     await self.tumune_yayinla("Ortada çekilecek taş kalmadı! El berabere bitti, masadaki taşlar yeniden dağıtılıyor.")
                     self.oyunu_baslat()
                     await self.durumu_gonder()
                     return
-
             elif nerden == "yandan":
                 if self.atilan_taslar[onceki_oyuncu]:
                     self.oyuncu_elleri[oyuncu_adi].append(self.atilan_taslar[onceki_oyuncu].pop())
@@ -230,7 +230,6 @@ class OyunYoneticisi:
                 g_obj = [next((t for t in el_kopyasi if t['uid'] == uid), None) for uid in g_uids]
                 if all(g_obj): gruplar_obj.append(g_obj)
 
-            # --- YENİ: KAZANMA DURUMUNDA RESETLEME ---
             if cift_kontrol_et(el_kopyasi, self.okey_tasi):
                 await self.tumune_yayinla(f"🏆 TEBRİKLER! {oyuncu_adi} ÇİFTTEN BİTTİ!\nYeni el otomatik olarak başlatılıyor...")
                 self.oyunu_baslat()
